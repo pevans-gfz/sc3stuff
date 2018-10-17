@@ -88,7 +88,7 @@ class PickPlayer(Client.Application):
         # collect the objects
         objs = []
 
-        v = (ep.pickCount(), ep.amplitudeCount(),
+        v = (ep.pickCount(), ep.amplitudeCount(), ep.magnitudeCount()
               ep.originCount(), ep.eventCount())
         print('DEBUG Objects:', v, 'sum:', sum(v))
 
@@ -102,6 +102,11 @@ class PickPlayer(Client.Application):
             ampl = DataModel.Amplitude.Cast(ep.amplitude(0))
             ep.removeAmplitude(0)
             objs.append(ampl)
+        while ep.magnitudeCount() > 0:
+            # FIXME: The cast hack forces the SC3 refcounter to be increased.
+            magn = DataModel.Magnitude.Cast(ep.magnitude(0))
+            ep.removeMagnitude(0)
+            objs.append(magn)
         while ep.originCount() > 0:
             # FIXME: The cast hack forces the SC3 refcounter to be increased.
             origin = DataModel.Origin.Cast(ep.origin(0))
@@ -148,7 +153,8 @@ class PickPlayer(Client.Application):
                 while t > Core.Time.GMT():
                     time.sleep(0.1)
 
-            allowed_objects = ('Amplitude', 'Event', 'Origin', 'Pick')
+            allowed_objects = ('Amplitude', 'Event', 'Magnitude',
+                               'Origin', 'Pick')
             if obj.ClassName() not in allowed_objects:
                 continue
 
