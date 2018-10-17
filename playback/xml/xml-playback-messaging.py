@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys, os, time, tempfile
 from seiscomp3 import Core, Client, DataModel, Communication, IO, Logging
 
@@ -86,6 +87,11 @@ class PickPlayer(Client.Application):
 
         # collect the objects
         objs = []
+
+        v = (ep.pickCount(), ep.amplitudeCount(),
+              ep.originCount(), ep.eventCount())
+        print('DEBUG Objects:', v, 'sum:', sum(v))
+
         while ep.pickCount() > 0:
             # FIXME: The cast hack forces the SC3 refcounter to be increased.
             pick = DataModel.Pick.Cast(ep.pick(0))
@@ -101,14 +107,24 @@ class PickPlayer(Client.Application):
             origin = DataModel.Origin.Cast(ep.origin(0))
             ep.removeOrigin(0)
             objs.append(origin)
+        while ep.eventCount() > 0:
+            # FIXME: The cast hack forces the SC3 refcounter to be increased.
+            event = DataModel.Event.Cast(ep.event(0))
+            ep.removeEvent(0)
+            objs.append(event)
+
         del ep
+        print('DEBUG len(objs) =', len(objs))
 
         # DSU sort all objects by object creation time
         sortlist = []
         for obj in objs:
             # discard objects that have no creationInfo attribute
-            try:    t = obj.creationInfo().creationTime()
-            except: continue
+            try:
+                t = obj.creationInfo().creationTime()
+            except:
+                print('DEBUG Discarding object', obj,publicID())
+                continue
 
             if self._startTime is not None and t < self._startTime:
                 continue
@@ -132,7 +148,8 @@ class PickPlayer(Client.Application):
                 while t > Core.Time.GMT():
                     time.sleep(0.1)
 
-            if obj.ClassName() not in [ "Pick", "Amplitude", "Origin" ]:
+            allowed_objects = ('Amplitude', 'Event', 'Origin', 'Pick')
+            if obj.ClassName() not in allowed_objects:
                 continue
 
             DataModel.Notifier.Enable()
@@ -148,7 +165,7 @@ class PickPlayer(Client.Application):
             DataModel.Notifier.Disable()
             self.sync()
 
-        return
+        return True
 
 
     def _runStreamMode(self, stream=sys.stdin):
@@ -166,7 +183,7 @@ class PickPlayer(Client.Application):
                 ofile.close()
                 # in batch mode pick up data in temp file
                 self._runBatchMode()
-
+        return True
 
     def run(self):
 
